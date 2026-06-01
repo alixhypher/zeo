@@ -49,9 +49,8 @@ settings.
 
 In the GUI you can:
 
-- Use the default dark mode, or switch to light mode with the theme toggle.
-- Single-click a row to select or deselect that night for export.
-- Compare original decoder times against corrected times in the table.
+- Select or deselect nights for export.
+- Compare original decoder times against corrected times.
 - Double-click any corrected `Start of Night`, `End of Night`, or `Rise Time`
   value to manually override it.
 - Click **Export CSV** to write an Oscar-ready CSV.

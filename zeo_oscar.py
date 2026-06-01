@@ -187,38 +187,6 @@ def write_output(path: Path | str, fieldnames: Sequence[str], records: Iterable[
 class ZeoOscarApp:
     """Tkinter GUI for selecting records and overriding corrected times."""
 
-    LIGHT_THEME = {
-        "bg": "#f4f7fb",
-        "panel": "#ffffff",
-        "panel_alt": "#eef4ff",
-        "text": "#172033",
-        "muted": "#5d6b82",
-        "accent": "#2563eb",
-        "accent_text": "#ffffff",
-        "border": "#d8e0ef",
-        "tree_bg": "#ffffff",
-        "tree_alt": "#f7faff",
-        "tree_selected": "#e6f0ff",
-        "tree_unselected": "#fff7ed",
-        "heading": "#e8eef8",
-    }
-    DARK_THEME = {
-        "bg": "#111827",
-        "panel": "#1f2937",
-        "panel_alt": "#263244",
-        "text": "#f9fafb",
-        "muted": "#cbd5e1",
-        "accent": "#60a5fa",
-        "accent_text": "#0f172a",
-        "border": "#374151",
-        "tree_bg": "#182231",
-        "tree_alt": "#202c3d",
-        "tree_selected": "#1e3a5f",
-        "tree_unselected": "#3a2a1c",
-        "heading": "#273449",
-    }
-    EDITABLE_COLUMNS = {"#5": "Start of Night", "#7": "End of Night", "#9": "Rise Time"}
-
     def __init__(self, fieldnames: Sequence[str], records: list[SleepRecord], output_path: Path | str):
         import tkinter as tk
         from tkinter import messagebox, simpledialog, ttk
@@ -230,46 +198,17 @@ class ZeoOscarApp:
         self.fieldnames = list(fieldnames)
         self.records = records
         self.output_path = Path(output_path)
-        self.dark_mode = tk.BooleanVar(value=True)
 
         self.root = tk.Tk()
         self.root.title("Zeo to Oscar CSV Exporter")
-        self.root.geometry("1240x640")
-        self.root.minsize(1060, 520)
+        self.root.geometry("1180x560")
 
-        self.style = ttk.Style(self.root)
-        try:
-            self.style.theme_use("clam")
-        except tk.TclError:
-            pass
-
-        self.app_frame = ttk.Frame(self.root, style="App.TFrame", padding=18)
-        self.app_frame.pack(fill="both", expand=True)
-
-        header = ttk.Frame(self.app_frame, style="Panel.TFrame", padding=(18, 16))
-        header.pack(fill="x", pady=(0, 14))
-        title_row = ttk.Frame(header, style="Panel.TFrame")
-        title_row.pack(fill="x")
-        ttk.Label(title_row, text="Zeo → Oscar Exporter", style="Title.TLabel").pack(side="left")
-        self.theme_button = ttk.Button(title_row, text="☀ Light mode", command=self.toggle_theme, style="Secondary.TButton")
-        self.theme_button.pack(side="right")
-        subtitle = (
-            "Review decoded nights, compare original vs corrected times, single-click a row to include/exclude it, "
-            "and double-click corrected times to override them."
+        instructions = (
+            "Select the nights to export. Original decoder times and corrected times are shown side by side. "
+            "Double-click a corrected time (or press Enter) to override it."
         )
-        ttk.Label(header, text=subtitle, style="Muted.TLabel", wraplength=980, justify="left").pack(anchor="w", pady=(8, 0))
+        tk.Label(self.root, text=instructions, anchor="w", justify="left").pack(fill="x", padx=10, pady=(10, 4))
 
-        summary_frame = ttk.Frame(self.app_frame, style="App.TFrame")
-        summary_frame.pack(fill="x", pady=(0, 12))
-        self.total_card = ttk.Label(summary_frame, style="Card.TLabel", anchor="center", padding=(14, 10))
-        self.total_card.pack(side="left", fill="x", expand=True, padx=(0, 8))
-        self.selected_card = ttk.Label(summary_frame, style="Card.TLabel", anchor="center", padding=(14, 10))
-        self.selected_card.pack(side="left", fill="x", expand=True, padx=8)
-        self.output_card = ttk.Label(summary_frame, style="Card.TLabel", anchor="center", padding=(14, 10))
-        self.output_card.pack(side="left", fill="x", expand=True, padx=(8, 0))
-
-        table_frame = ttk.Frame(self.app_frame, style="Panel.TFrame", padding=10)
-        table_frame.pack(fill="both", expand=True)
         columns = (
             "selected",
             "sleep_date",
@@ -282,7 +221,7 @@ class ZeoOscarApp:
             "rise_corrected",
             "notes",
         )
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(self.root, columns=columns, show="headings", selectmode="browse")
         headings = {
             "selected": "Export",
             "sleep_date": "Sleep Date",
@@ -293,93 +232,44 @@ class ZeoOscarApp:
             "end_corrected": "End Corrected",
             "rise_original": "Rise Original",
             "rise_corrected": "Rise Corrected",
-            "notes": "Automatic Fixes / Notes",
+            "notes": "Automatic Fixes",
         }
         widths = {
-            "selected": 78,
-            "sleep_date": 110,
-            "zq": 58,
-            "start_original": 148,
-            "start_corrected": 152,
-            "end_original": 148,
-            "end_corrected": 152,
-            "rise_original": 148,
-            "rise_corrected": 152,
-            "notes": 220,
+            "selected": 70,
+            "sleep_date": 100,
+            "zq": 55,
+            "start_original": 145,
+            "start_corrected": 145,
+            "end_original": 145,
+            "end_corrected": 145,
+            "rise_original": 145,
+            "rise_corrected": 145,
+            "notes": 190,
         }
         for column in columns:
             self.tree.heading(column, text=headings[column])
-            self.tree.column(column, width=widths[column], minwidth=46, stretch=column == "notes")
-        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
-        x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        y_scroll.grid(row=0, column=1, sticky="ns")
-        x_scroll.grid(row=1, column=0, sticky="ew")
-        table_frame.columnconfigure(0, weight=1)
-        table_frame.rowconfigure(0, weight=1)
-        self.tree.bind("<ButtonRelease-1>", self.on_single_click)
+            self.tree.column(column, width=widths[column], minwidth=40, stretch=column == "notes")
+        self.tree.pack(fill="both", expand=True, padx=10, pady=6)
         self.tree.bind("<Double-1>", self.on_double_click)
         self.tree.bind("<space>", self.on_toggle_key)
         self.tree.bind("<Return>", self.on_edit_key)
 
-        button_frame = ttk.Frame(self.app_frame, style="App.TFrame")
-        button_frame.pack(fill="x", pady=(12, 0))
-        ttk.Button(button_frame, text="Select all", command=self.select_all, style="Secondary.TButton").pack(side="left")
-        ttk.Button(button_frame, text="Select none", command=self.select_none, style="Secondary.TButton").pack(side="left", padx=8)
-        self.status_label = ttk.Label(button_frame, style="Muted.TLabel")
-        self.status_label.pack(side="left", padx=10)
-        ttk.Button(button_frame, text="Export CSV", command=self.export, style="Primary.TButton").pack(side="right")
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(fill="x", padx=10, pady=(4, 10))
+        tk.Button(button_frame, text="Select All", command=self.select_all).pack(side="left")
+        tk.Button(button_frame, text="Select None", command=self.select_none).pack(side="left", padx=6)
+        tk.Button(button_frame, text="Export CSV", command=self.export).pack(side="right")
 
-        self.apply_theme()
         self.refresh()
-
-    def current_theme(self) -> dict[str, str]:
-        return self.DARK_THEME if self.dark_mode.get() else self.LIGHT_THEME
-
-    def toggle_theme(self) -> None:
-        self.dark_mode.set(not self.dark_mode.get())
-        self.apply_theme()
-        self.refresh()
-
-    def apply_theme(self) -> None:
-        theme = self.current_theme()
-        self.root.configure(bg=theme["bg"])
-        self.style.configure("App.TFrame", background=theme["bg"])
-        self.style.configure("Panel.TFrame", background=theme["panel"], relief="flat")
-        self.style.configure("Title.TLabel", background=theme["panel"], foreground=theme["text"], font=("TkDefaultFont", 20, "bold"))
-        self.style.configure("Muted.TLabel", background=theme["panel"], foreground=theme["muted"], font=("TkDefaultFont", 10))
-        self.style.configure("Card.TLabel", background=theme["panel_alt"], foreground=theme["text"], font=("TkDefaultFont", 11, "bold"), relief="flat")
-        self.style.configure("Treeview", background=theme["tree_bg"], fieldbackground=theme["tree_bg"], foreground=theme["text"], rowheight=30, bordercolor=theme["border"], lightcolor=theme["border"], darkcolor=theme["border"])
-        self.style.configure("Treeview.Heading", background=theme["heading"], foreground=theme["text"], font=("TkDefaultFont", 10, "bold"), relief="flat", padding=(8, 8))
-        self.style.map("Treeview", background=[("selected", theme["accent"])], foreground=[("selected", theme["accent_text"])])
-        self.style.configure("Primary.TButton", background=theme["accent"], foreground=theme["accent_text"], font=("TkDefaultFont", 10, "bold"), padding=(16, 9), borderwidth=0)
-        self.style.configure("Secondary.TButton", background=theme["panel_alt"], foreground=theme["text"], padding=(14, 8), borderwidth=0)
-        self.style.map("Primary.TButton", background=[("active", theme["accent"])], foreground=[("active", theme["accent_text"])])
-        self.style.map("Secondary.TButton", background=[("active", theme["heading"])], foreground=[("active", theme["text"])])
-        self.theme_button.configure(text="☀ Light mode" if self.dark_mode.get() else "🌙 Dark mode")
-        self.update_tree_tags()
-
-    def update_tree_tags(self) -> None:
-        theme = self.current_theme()
-        self.tree.tag_configure("selected_even", background=theme["tree_bg"], foreground=theme["text"])
-        self.tree.tag_configure("selected_odd", background=theme["tree_alt"], foreground=theme["text"])
-        self.tree.tag_configure("not_exported", background=theme["tree_unselected"], foreground=theme["muted"])
 
     def refresh(self) -> None:
         self.tree.delete(*self.tree.get_children())
         for index, record in enumerate(self.records):
-            self.tree.insert("", "end", iid=str(index), values=self.values_for(record), tags=self.tags_for(index, record))
-        self.update_summary()
-
-    def tags_for(self, index: int, record: SleepRecord) -> tuple[str, ...]:
-        if not record.selected:
-            return ("not_exported",)
-        return ("selected_even",) if index % 2 == 0 else ("selected_odd",)
+            self.tree.insert("", "end", iid=str(index), values=self.values_for(record))
 
     def values_for(self, record: SleepRecord) -> tuple[str, ...]:
         return (
-            "✓ Export" if record.selected else "— Skip",
+            "☑" if record.selected else "☐",
             record.sleep_date,
             record.row.get("ZQ", ""),
             record.original_times.get("Start of Night", ""),
@@ -397,31 +287,7 @@ class ZeoOscarApp:
 
     def toggle_record(self, index: int) -> None:
         self.records[index].selected = not self.records[index].selected
-        self.tree.item(str(index), values=self.values_for(self.records[index]), tags=self.tags_for(index, self.records[index]))
-        self.tree.selection_set(str(index))
-        self.update_summary()
-
-    def update_summary(self) -> None:
-        total = len(self.records)
-        selected = sum(1 for record in self.records if record.selected)
-        skipped = total - selected
-        self.total_card.configure(text=f"{total} decoded night{'s' if total != 1 else ''}")
-        self.selected_card.configure(text=f"{selected} selected • {skipped} skipped")
-        self.output_card.configure(text=f"Output: {self.output_path.name}")
-        self.status_label.configure(text="Single-click a row to toggle export; double-click corrected times to edit.")
-
-    def on_single_click(self, event) -> str | None:
-        row_id = self.tree.identify_row(event.y)
-        column_id = self.tree.identify_column(event.x)
-        if not row_id:
-            return None
-        self.tree.selection_set(row_id)
-        # Corrected timestamp cells are reserved for double-click editing, so a
-        # single click there only focuses the row instead of toggling it.
-        if column_id not in self.EDITABLE_COLUMNS:
-            self.toggle_record(int(row_id))
-            return "break"
-        return None
+        self.tree.item(str(index), values=self.values_for(self.records[index]))
 
     def on_toggle_key(self, _event=None) -> str:
         index = self.selected_record_index()
@@ -435,16 +301,18 @@ class ZeoOscarApp:
             self.edit_time(index, "Start of Night")
         return "break"
 
-    def on_double_click(self, event) -> str | None:
+    def on_double_click(self, event) -> None:
         row_id = self.tree.identify_row(event.y)
         column_id = self.tree.identify_column(event.x)
         if not row_id:
-            return None
+            return
         index = int(row_id)
-        if column_id in self.EDITABLE_COLUMNS:
-            self.edit_time(index, self.EDITABLE_COLUMNS[column_id])
-            return "break"
-        return None
+        if column_id == "#1":
+            self.toggle_record(index)
+            return
+        editable = {"#5": "Start of Night", "#7": "End of Night", "#9": "Rise Time"}
+        if column_id in editable:
+            self.edit_time(index, editable[column_id])
 
     def edit_time(self, index: int, column: str) -> None:
         record = self.records[index]
@@ -464,8 +332,7 @@ class ZeoOscarApp:
         record.corrected_times[column] = value
         if f"{column}: manual override" not in record.notes:
             record.notes.append(f"{column}: manual override")
-        self.tree.item(str(index), values=self.values_for(record), tags=self.tags_for(index, record))
-        self.update_summary()
+        self.tree.item(str(index), values=self.values_for(record))
 
     def select_all(self) -> None:
         for record in self.records:
