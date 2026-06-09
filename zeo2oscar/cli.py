@@ -28,6 +28,7 @@ from typing import List, Optional
 from . import decoder
 from .decoder import DecoderError
 from .records import COL_END, COL_RISE, COL_START, NightCollection
+from .validation import validate_night
 
 
 def load_collection(args: argparse.Namespace) -> NightCollection:
@@ -50,16 +51,24 @@ def _format_table(collection: NightCollection) -> str:
         f"{'Rise (orig -> corrected)':<34}"
     )
     lines = [header, "-" * len(header)]
+    warning_notes = []
     for index, night in enumerate(collection.nights):
         cells = []
         for column in (COL_START, COL_END, COL_RISE):
             orig = night.original(column) or "(none)"
             corr = night.corrected(column) or "(none)"
             cells.append(f"{orig} -> {corr}")
+        flag = " !" if validate_night(night) else "  "
         lines.append(
-            f"{index:>3}  {night.sleep_date:<11}  {night.zq:>3}  "
+            f"{index:>3}{flag} {night.sleep_date:<11}  {night.zq:>3}  "
             f"{cells[0]:<34}  {cells[1]:<34}  {cells[2]:<34}"
         )
+        for warning in validate_night(night):
+            warning_notes.append(f"  ! #{index} {night.sleep_date}: {warning}")
+    if warning_notes:
+        lines.append("")
+        lines.append("Warnings:")
+        lines.extend(warning_notes)
     return "\n".join(lines)
 
 

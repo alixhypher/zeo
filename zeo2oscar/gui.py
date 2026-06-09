@@ -15,6 +15,7 @@ from . import decoder
 from .corrections import parse_zeo_datetime
 from .decoder import DecoderError
 from .records import COL_END, COL_RISE, COL_START, Night, NightCollection
+from .validation import validate_night
 
 # Tkinter is imported lazily inside launch() so that importing this module
 # (and the rest of the package) never fails on headless systems.
@@ -45,6 +46,7 @@ def launch(
             self.tz = tz
             self.include_vars: List[tk.BooleanVar] = []
             self.override_entries: List[dict] = []
+            self.date_labels: List[ttk.Label] = []
 
             root.title("zeo2oscar - Zeo to OSCAR")
             root.geometry("1100x620")
@@ -172,6 +174,7 @@ def launch(
                 child.destroy()
             self.include_vars = []
             self.override_entries = []
+            self.date_labels = []
 
             assert self.collection is not None
             for index, night in enumerate(self.collection.nights):
@@ -187,8 +190,9 @@ def launch(
 
             ttk.Checkbutton(self.rows_frame, variable=include, command=on_toggle,
                             width=4).grid(row=index, column=0, padx=2, sticky="w")
-            ttk.Label(self.rows_frame, text=night.sleep_date, width=12, anchor="w").grid(
-                row=index, column=1, padx=2, sticky="w")
+            date_label = ttk.Label(self.rows_frame, text=night.sleep_date, width=12, anchor="w")
+            date_label.grid(row=index, column=1, padx=2, sticky="w")
+            self.date_labels.append(date_label)
             ttk.Label(self.rows_frame, text=night.zq, width=5, anchor="w").grid(
                 row=index, column=2, padx=2, sticky="w")
 
@@ -204,6 +208,22 @@ def launch(
                 entries[column] = entry
                 col += 2
             self.override_entries.append(entries)
+            self._refresh_warning(night)
+
+        def _refresh_warning(self, night: Night) -> None:
+            """Tint a night's date red when its corrected times look wrong."""
+            try:
+                idx = self.collection.nights.index(night)
+            except (ValueError, AttributeError):
+                return
+            warnings = validate_night(night)
+            label = self.date_labels[idx]
+            if warnings:
+                label.configure(foreground="#b02a37")
+                if night.selected:
+                    self.set_status(f"{night.sleep_date}: {warnings[0]}")
+            else:
+                label.configure(foreground="")
 
         def _commit(self, night: Night, column: str, entry) -> None:
             value = entry.get().strip()
@@ -217,9 +237,9 @@ def launch(
                 entry.configure(foreground="red")
                 self.set_status(f"Invalid time '{value}'. Expected MM/DD/YYYY HH:MM.")
                 return
-            entry.configure(foreground="")
             # Visually flag user-overridden values.
             entry.configure(foreground="#0a58ca" if night.is_overridden(column) else "")
+            self._refresh_warning(night)
 
         def _set_all(self, value: bool) -> None:
             if not self.collection:
@@ -238,6 +258,7 @@ def launch(
                     entry.delete(0, "end")
                     entry.insert(0, night.default_corrected(column))
                     entry.configure(foreground="")
+                self._refresh_warning(night)
             self.set_status("Corrections reset to computed defaults.")
 
         # ---- output ----------------------------------------------------

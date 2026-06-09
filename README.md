@@ -18,7 +18,10 @@ When you run it, the tool:
    [Corrections](#corrections)).
 3. Shows every night with its **original** and **corrected** times, lets you
    **select** which nights to export and **override** any corrected time.
-4. Writes an OSCAR-ready CSV containing just the nights you chose.
+4. Flags any night whose corrected times are not chronologically valid (the
+   Start of Night must fall before the End of Night) so you can fix it before
+   exporting — shown as a red date in the GUI and a `!` marker in `--list`.
+5. Writes an OSCAR-ready CSV containing just the nights you chose.
 
 ## Requirements
 
